@@ -28,8 +28,9 @@ router.post("/register", async (req,res)=>{
         const newAuth = new Auth({
             userName,
             email,
-            password
+            password: await Auth.encryptPassword(password)
         });
+
         
         await newAuth.save();
         const token = jwt.sign({id: newAuth._id},KEY)
@@ -37,6 +38,7 @@ router.post("/register", async (req,res)=>{
             token
         })
     } catch (error) {
+        console.log(error)
         res.status(500).json("Error");
     }
 });
@@ -45,8 +47,15 @@ router.post("/login", async (req,res)=>{
     const {email,password} = req.body;
     if(!(email && password))
         return res.status(400).json("fill in all parameters")
-    const user = await Auth.findOne({email: email,password: password});
+    
+    const user = await Auth.findOne({email: email});
+    
     if(!user)
+        return res.status(400).json("the user no exists");
+
+    const macth = await Auth.comparePassword(password,user.password)
+    
+    if(!macth)
         return res.status(400).json("the user no exists");
     
     const token = jwt.sign({id: user._id},KEY);
@@ -54,7 +63,7 @@ router.post("/login", async (req,res)=>{
 });
 
 router.get("/account",account, async (req,res)=>{
-    const user = await Auth.find({_id:req.userId});
+    const user = await Auth.find({_id:req.userId},{password: 0});
     return res.status(200).json(user)
 });
 
